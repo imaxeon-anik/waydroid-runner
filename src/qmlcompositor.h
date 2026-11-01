@@ -47,11 +47,13 @@ class QmlCompositor : public QObject, public QWaylandQuickCompositor
 {
     Q_OBJECT
     Q_PROPERTY(QWaylandQuickSurface* fullscreenSurface READ fullscreenSurface WRITE setFullscreenSurface NOTIFY fullscreenSurfaceChanged)
+    Q_PROPERTY(qreal renderScale READ renderScale CONSTANT)
 
 public:
-    QmlCompositor(QQuickView *quickView, const char *socketName = 0);
+    QmlCompositor(QQuickView *quickView, const char *socketName = 0, qreal renderScale = 1.0, int refreshRate = 0);
 
     QWaylandQuickSurface *fullscreenSurface() const;
+    qreal renderScale() const;
 
     Q_INVOKABLE QWaylandSurfaceItem *item(QWaylandSurface *surf);
     Q_INVOKABLE void setSize(int width, int height);
@@ -79,6 +81,7 @@ protected:
 private:
     QWaylandQuickSurface *m_fullscreenSurface;
     QQuickView *m_window;
+    qreal m_renderScale;
 };
 
 #endif // QMLCOMPOSITOR_H

@@ -45,16 +45,21 @@
 
 #include <QDebug>
 
-QmlCompositor::QmlCompositor(QQuickView *quickView, const char *socketName)
+QmlCompositor::QmlCompositor(QQuickView *quickView, const char *socketName, qreal renderScale, int refreshRate)
     : QObject(quickView)
     , QWaylandQuickCompositor(socketName, DefaultExtensions | SubSurfaceExtension)
     , m_fullscreenSurface(0),
-      m_window(quickView)
+      m_window(quickView),
+      m_renderScale(renderScale)
 {
-    QSize size = quickView->size();
-    setSize(size.height(), size.width());
     addDefaultShell();
     createOutput(m_window, "", "");
+    // wl_shell maximize answers with the output's available geometry; the
+    // scaled size must be there before Android's first window appears
+    QSize size = quickView->size();
+    setSize(size.width(), size.height());
+    if (refreshRate > 0)
+        setOutputRefreshRate(refreshRate * 1000);
 
     connect(m_window, &QWindow::heightChanged, this, &QmlCompositor::sizeChanged);
     connect(m_window, &QWindow::widthChanged, this, &QmlCompositor::sizeChanged);
@@ -73,7 +78,19 @@ void QmlCompositor::sizeChanged(int)
 
 void QmlCompositor::setSize(int width, int height)
 {
-    setOutputGeometry(QRect(0,0, width, height));
+    if (width <= 0 || height <= 0)
+        return;
+    QRect geometry(0, 0, qRound(width * m_renderScale), qRound(height * m_renderScale));
+    qDebug() << "Available geometry" << geometry.size() << "from window" << width << "x" << height;
+    // setOutputGeometry()/setMode() also resize the window, which feeds back
+    // into sizeChanged(); the available geometry leaves the window alone
+    if (primaryOutput())
+        primaryOutput()->setAvailableGeometry(geometry);
+}
+
+qreal QmlCompositor::renderScale() const
+{
+    return m_renderScale;
 }
 
 QWaylandSurfaceItem *QmlCompositor::item(QWaylandSurface *surf)

@@ -6,7 +6,7 @@ Name:       waydroid-runner
 %{?qtc_builddir:%define _builddir %qtc_builddir}
 Summary:    Waydroid session wrapper
 Version:    0.3.1
-Release:    1
+Release:    5.scale
 Group:      Qt/Qt
 License:    BSD-3
 URL:        https://github.com/sailfishos-open/waydroid-runner

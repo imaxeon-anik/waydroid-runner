@@ -52,17 +52,25 @@ MouseArea {
     property bool popup: false
 
     Component.onCompleted: {
+        child.smooth = true
         if (popup) {
+            child.transformOrigin = Item.TopLeft
+            child.scale = 1.0 / compositor.renderScale
             child.parent = popupContainer;
-            popupContainer.width = child.width
-            popupContainer.height = child.height
+            popupContainer.width = child.width * child.scale
+            popupContainer.height = child.height * child.scale
         } else {
-            child.parent = container;
+            // QWaylandSurfaceItem resizes itself to every committed buffer;
+            // only anchors keep it pinned, so the scale lives on the parent.
+            child.parent = scaler;
             child.resizeSurfaceToItem = true
-            child.anchors.fill = container
+            child.anchors.fill = scaler
             child.touchEventsEnabled = true
             child.takeFocus()
         }
+        console.log("Window added: popup", popup, "surface", child.surface.size.width, "x", child.surface.size.height,
+                    "scaler", scaler.width, "x", scaler.height, "@", scaler.scale, "container", container.width, "x", container.height,
+                    "item", child.width, "x", child.height, "scale", compositor.renderScale)
     }
 
     function close() {
@@ -87,12 +95,22 @@ MouseArea {
 
         onUnmapped: close()
         onSurfaceDestroyed: close()
+        onSizeChanged: console.log("Surface size", child.surface.size.width, "x", child.surface.size.height,
+                                   "item", child.width, "x", child.height, "parent", child.parent, "scale", child.scale)
         onDamaged: {
             if (popup) {
-                popupContainer.width = child.width
-                popupContainer.height = child.height
+                popupContainer.width = child.width * child.scale
+                popupContainer.height = child.height * child.scale
             }
         }
+    }
+
+    Item {
+        id: scaler
+        transformOrigin: Item.TopLeft
+        scale: 1.0 / compositor.renderScale
+        width: Math.round(container.width * compositor.renderScale)
+        height: Math.round(container.height * compositor.renderScale)
     }
 
     Item {

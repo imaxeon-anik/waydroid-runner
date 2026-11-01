@@ -40,6 +40,8 @@
 #include <QGuiApplication>
 #include <QQmlContext>
 #include <QQuickView>
+#include <QSettings>
+#include <QUrl>
 #include <QStandardPaths>
 #include <QDir>
 #include <sailfishapp.h>
@@ -83,7 +85,19 @@ int main(int argc, char *argv[])
       }
     else
       std::cerr << "Wayland socket: " << socket.toStdString() << "\n";
-    QmlCompositor *compositor = new QmlCompositor(view, socket.toStdString().c_str());
+    // render scale and refresh rate: env overrides ~/.config/waydroid-runner/waydroid-runner.conf
+    QSettings settings;
+    qreal renderScale = settings.value("scale", 1.0).toReal();
+    int refreshRate = settings.value("refresh", 0).toInt();
+    if (qEnvironmentVariableIsSet("WAYDROID_RUNNER_SCALE"))
+      renderScale = qgetenv("WAYDROID_RUNNER_SCALE").toDouble();
+    if (qEnvironmentVariableIsSet("WAYDROID_RUNNER_REFRESH"))
+      refreshRate = qgetenv("WAYDROID_RUNNER_REFRESH").toInt();
+    if (renderScale < 0.25 || renderScale > 2.0)
+      renderScale = 1.0;
+    std::cerr << "Render scale: " << renderScale << ", refresh: " << refreshRate << "\n";
+
+    QmlCompositor *compositor = new QmlCompositor(view, socket.toStdString().c_str(), renderScale, refreshRate);
     QObject::connect(view, SIGNAL(afterRendering()), compositor, SLOT(sendCallbacks()));
     view->rootContext()->setContextProperty("compositor", compositor);
 
@@ -94,7 +108,10 @@ int main(int argc, char *argv[])
     // whether settings are allowed and misc variables
     view->rootContext()->setContextProperty("programVersion", APP_VERSION);
 
-    view->setSource(SailfishApp::pathTo("qml/main.qml"));
+    if (qEnvironmentVariableIsSet("WAYDROID_RUNNER_QML_DIR"))
+      view->setSource(QUrl::fromLocalFile(QString::fromLocal8Bit(qgetenv("WAYDROID_RUNNER_QML_DIR")) + "/main.qml"));
+    else
+      view->setSource(SailfishApp::pathTo("qml/main.qml"));
     view->create();
     QObject *firstPage = view->rootObject()->findChild<QObject*>("mainPage");
     QObject::connect(compositor, SIGNAL(windowAdded(QVariant)), firstPage, SLOT(windowAdded(QVariant)));
